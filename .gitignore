@@ -1,0 +1,5 @@
+# Ignorer le fichier .env dans le dossier API
+API/.env
+
+# Ignorer tout le dossier node_modules dans le dossier API
+API/node_modules/

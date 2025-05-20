@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anime Coda</title>
+    <!-- Feuille de style principale -->
+    <link rel="stylesheet" href="style.css" />
+    <!-- Font Awesome pour les icônes -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+  </head>
+  <body>
+    <!-- Header avec bouton de connexion -->
+    <header>
+      <button id="login-button" aria-label="Se connecter">
+        <i class="fa-solid fa-user"></i> Se connecter
+      </button>
+    </header>
+
+    <main>
+      <h1>Liste des Animes</h1>
+
+      <!-- Barre de recherche et ajout -->
+      <section id="search-container">
+        <input
+          type="text"
+          id="search-input"
+          placeholder="Rechercher un anime..."
+          autocomplete="off"
+          aria-label="Rechercher un anime"
+        />
+        <button id="search-button" aria-label="Rechercher">
+          <i class="fa-solid fa-magnifying-glass"></i>
+        </button>
+        <button id="add-button" aria-label="Ajouter un anime">
+          <i class="fa-solid fa-plus"></i> Ajouter un anime
+        </button>
+      </section>
+
+      <!-- Tableau des animés -->
+      <section aria-label="Liste des animés">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Id</th>
+              <th scope="col">Nom</th>
+              <th scope="col">Nom URL</th>
+              <th scope="col">Affiche</th>
+              <th scope="col">Description</th>
+              <th scope="col">Langues</th>
+              <th scope="col">Catégories</th>
+              <th scope="col">Nombre de saisons</th>
+              <th scope="col">Nombre d'épisodes</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="anime-list"></tbody>
+        </table>
+      </section>
+
+      <!-- Pagination -->
+      <nav id="pagination" aria-label="Pagination">
+        <button id="prev" disabled aria-label="Page précédente">
+          <i class="fa-solid fa-angle-left"></i>
+        </button>
+        <span id="page-info">Page 1 of 1</span>
+        <button id="next" aria-label="Page suivante">
+          <i class="fa-solid fa-angle-right"></i>
+        </button>
+      </nav>
+    </main>
+
+    <!-- Modal Connexion -->
+    <div id="login-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="login-title">
+      <div class="modal-content">
+        <span class="close" data-close="login-modal" tabindex="0" role="button" aria-label="Fermer">&times;</span>
+        <h2 id="login-title">Connexion</h2>
+        <form id="login-form" autocomplete="off">
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" name="email" required autocomplete="username" />
+          <label for="login-password">Mot de passe</label>
+          <input type="password" id="login-password" name="password" required autocomplete="current-password" />
+          <button type="submit">Se connecter</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Création -->
+    <div id="create-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="create-title">
+      <div class="modal-content">
+        <span class="close" data-close="create-modal" tabindex="0" role="button" aria-label="Fermer">&times;</span>
+        <h2 id="create-title">Ajouter un animé</h2>
+        <form id="create-form" autocomplete="off">
+          <label for="create-nom">Nom</label>
+          <input type="text" id="create-nom" name="nom" placeholder="Nom" required />
+          <label for="create-nom-url">Nom URL</label>
+          <input type="text" id="create-nom-url" name="nom_url" placeholder="Nom URL" required />
+          <label for="create-affiche">URL de l'affiche</label>
+          <input
+            type="url"
+            id="create-affiche"
+            name="affiche_anime"
+            placeholder="URL de l'affiche"
+            required
+          />
+          <label for="create-description">Description</label>
+          <textarea id="create-description" name="description" placeholder="Description"></textarea>
+          <label for="create-langues-select">Langues</label>
+          <select name="langues" multiple id="create-langues-select"></select>
+          <label for="create-categories-select">Catégories</label>
+          <select name="categories" multiple id="create-categories-select"></select>
+          <button type="submit">Créer</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Edition -->
+    <div id="edit-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="edit-title">
+      <div class="modal-content">
+        <span class="close" data-close="edit-modal" tabindex="0" role="button" aria-label="Fermer">&times;</span>
+        <h2 id="edit-title">Modifier l'animé</h2>
+        <form id="edit-form" autocomplete="off">
+          <input type="hidden" name="id" />
+          <label for="edit-nom">Nom</label>
+          <input type="text" id="edit-nom" name="nom" placeholder="Nom" required />
+          <label for="edit-nom-url">Nom URL</label>
+          <input type="text" id="edit-nom-url" name="nom_url" placeholder="Nom URL" required />
+          <label for="edit-affiche">URL de l'affiche</label>
+          <input
+            type="url"
+            id="edit-affiche"
+            name="affiche_anime"
+            placeholder="URL de l'affiche"
+            required
+          />
+          <label for="edit-description">Description</label>
+          <textarea id="edit-description" name="description" placeholder="Description"></textarea>
+          <label for="edit-langues-select">Langues</label>
+          <select name="langues" multiple id="edit-langues-select"></select>
+          <label for="edit-categories-select">Catégories</label>
+          <select name="categories" multiple id="edit-categories-select"></select>
+          <button type="submit">Enregistrer les modifications</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Suppression -->
+    <div id="delete-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+      <div class="modal-content">
+        <span class="close" data-close="delete-modal" tabindex="0" role="button" aria-label="Fermer">&times;</span>
+        <h2 id="delete-title">Confirmation</h2>
+        <p>Es-tu sûr de vouloir supprimer cet animé ?</p>
+        <button id="confirm-delete">Oui, supprimer</button>
+        <button data-close="delete-modal">Annuler</button>
+      </div>
+    </div>
+
+    <!-- Script principal -->
+    <script src="script.js"></script>
+  </body>
+</html>
