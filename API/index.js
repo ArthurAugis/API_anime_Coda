@@ -1,5 +1,5 @@
 /**
- * API Anime Coda - Optimisée & Sécurisée
+ * API Anime Coda
  */
 
 const mysql = require("mysql2/promise");
@@ -7,8 +7,12 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const cors = require("cors");
+const NodeCache = require("node-cache"); 
 const app = express();
 const port = 3000;
+
+// Initialisation du cache (TTL 60s)
+const cache = new NodeCache({ stdTTL: 60 });
 
 // Middlewares globaux
 app.use(cors());
@@ -55,6 +59,10 @@ app.get("/animes", async (req, res) => {
   const offset = (page - 1) * limit;
   const search = req.query.search ? `%${req.query.search}%` : null;
 
+  const cacheKey = `animes_${page}_${limit}_${req.query.search || ""}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return res.json(cached);
+
   try {
     // Total pour la pagination
     const totalQuery = search
@@ -97,7 +105,9 @@ app.get("/animes", async (req, res) => {
       search ? [search, limit, offset] : [limit, offset]
     );
 
-    res.json({ data: animes, total, page, limit });
+    const response = { data: animes, total, page, limit };
+    cache.set(cacheKey, response);
+    res.json(response);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Erreur serveur lors de la récupération des animés." });
@@ -108,6 +118,10 @@ app.get("/animes", async (req, res) => {
 app.get("/animes/:id", async (req, res) => {
   const { id } = req.params;
   if (!/^\d+$/.test(id)) return res.status(400).json({ error: "ID invalide" });
+
+  const cacheKey = `anime_${id}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return res.json(cached);
 
   try {
     const anime = await queryDatabase(
@@ -144,6 +158,7 @@ app.get("/animes/:id", async (req, res) => {
       return res.status(404).json({ error: "Animé non trouvé." });
     }
 
+    cache.set(cacheKey, anime[0]);
     res.json(anime[0]);
   } catch (error) {
     console.error(error);
@@ -153,8 +168,13 @@ app.get("/animes/:id", async (req, res) => {
 
 // Récupérer toutes les catégories
 app.get("/categories", async (req, res) => {
+  const cacheKey = "categories";
+  const cached = cache.get(cacheKey);
+  if (cached) return res.json(cached);
+
   try {
     const categories = await queryDatabase("SELECT * FROM tab_categories");
+    cache.set(cacheKey, categories);
     res.json(categories);
   } catch (error) {
     console.error(error);
@@ -162,10 +182,15 @@ app.get("/categories", async (req, res) => {
   }
 });
 
-// Récupérer toutes les langues
+// Récupérer toutes les langues 
 app.get("/langues", async (req, res) => {
+  const cacheKey = "langues";
+  const cached = cache.get(cacheKey);
+  if (cached) return res.json(cached);
+
   try {
     const langues = await queryDatabase("SELECT * FROM tab_langues");
+    cache.set(cacheKey, langues);
     res.json(langues);
   } catch (error) {
     console.error(error);
@@ -229,6 +254,7 @@ app.post("/animes", authenticateToken, async (req, res) => {
     }
 
     await conn.commit();
+    cache.flushAll(); // Invalide le cache après modification
     res.status(201).json({ message: "Animé créé avec succès", id: animeId });
   } catch (err) {
     await conn.rollback();
@@ -282,6 +308,7 @@ app.put("/animes/:id", authenticateToken, async (req, res) => {
     }
 
     await conn.commit();
+    cache.flushAll(); // Invalide le cache après modification
     res.json({ message: "Animé modifié avec succès." });
   } catch (err) {
     await conn.rollback();
@@ -302,6 +329,7 @@ app.delete("/animes/:id", authenticateToken, async (req, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: "Animé non trouvé." });
     }
+    cache.flushAll(); // Invalide le cache après modification
     res.json({ message: "Animé supprimé avec succès." });
   } catch (err) {
     console.error("Erreur suppression animé :", err);
