@@ -50,6 +50,39 @@ function authenticateToken(req, res, next) {
   });
 }
 
+// Utilitaire pour requête SQL anime (paginée ou par id)
+function getAnimeQuery({ byId = false } = {}) {
+  return `
+    SELECT 
+      la.id, 
+      la.nom AS nom_anime, 
+      la.nom_url AS nom_url_anime, 
+      la.affiche_url AS affiche_anime, 
+      la.description AS description_anime,
+      GROUP_CONCAT(DISTINCT l.nom ORDER BY l.nom SEPARATOR ', ') AS langue_anime,
+      GROUP_CONCAT(DISTINCT c.nom ORDER BY c.nom SEPARATOR ', ') AS categorie_anime,
+      COUNT(DISTINCT ts.id) AS saisons_anime,
+      MAX(episode_stats.episode_count) AS episodes_anime
+    FROM tab_liste_anime la
+    LEFT JOIN tab_parler p ON p.anime = la.id
+    LEFT JOIN tab_langues l ON l.id = p.langue
+    LEFT JOIN tab_categoriser ca ON ca.anime = la.id
+    LEFT JOIN tab_categories c ON c.id = ca.categorie
+    LEFT JOIN tab_saisons ts ON ts.anime = la.id
+    LEFT JOIN (
+      SELECT s.anime, COUNT(e.id) AS episode_count, e.langue
+      FROM tab_saisons s
+      JOIN tab_episodes e ON e.saison = s.id
+      GROUP BY s.anime, e.langue
+    ) AS episode_stats ON episode_stats.anime = la.id
+    ${byId ? "WHERE la.id = ?" : ""}
+    GROUP BY la.id
+    ORDER BY la.nom ASC
+    ${byId ? "" : "LIMIT ? OFFSET ?;"}
+  `;
+}
+
+
 // ROUTES
 
 // Récupérer la liste paginée des animés (avec recherche)
@@ -73,37 +106,15 @@ app.get("/animes", async (req, res) => {
     const total = totalRows[0].total;
 
     // Sélection paginée
-    const animes = await queryDatabase(
-      `
-      SELECT 
-        la.id, 
-        la.nom AS nom_anime, 
-        la.nom_url AS nom_url_anime, 
-        la.affiche_url AS affiche_anime, 
-        la.description AS description_anime,
-        GROUP_CONCAT(DISTINCT l.nom ORDER BY l.nom SEPARATOR ', ') AS langue_anime,
-        GROUP_CONCAT(DISTINCT c.nom ORDER BY c.nom SEPARATOR ', ') AS categorie_anime,
-        COUNT(DISTINCT ts.id) AS saisons_anime,
-        MAX(episode_stats.episode_count) AS episodes_anime
-      FROM tab_liste_anime la
-      LEFT JOIN tab_parler p ON p.anime = la.id
-      LEFT JOIN tab_langues l ON l.id = p.langue
-      LEFT JOIN tab_categoriser ca ON ca.anime = la.id
-      LEFT JOIN tab_categories c ON c.id = ca.categorie
-      LEFT JOIN tab_saisons ts ON ts.anime = la.id
-      LEFT JOIN (
-        SELECT s.anime, COUNT(e.id) AS episode_count, e.langue
-        FROM tab_saisons s
-        JOIN tab_episodes e ON e.saison = s.id
-        GROUP BY s.anime, e.langue
-      ) AS episode_stats ON episode_stats.anime = la.id
-      ${search ? "WHERE la.nom LIKE ?" : ""}
-      GROUP BY la.id
-      ORDER BY la.nom ASC
-      LIMIT ? OFFSET ?;
-      `,
-      search ? [search, limit, offset] : [limit, offset]
-    );
+    let sql = getAnimeQuery();
+    let params = [];
+    if (search) {
+      sql = sql.replace("GROUP BY la.id", "WHERE la.nom LIKE ? GROUP BY la.id");
+      params.push(search);
+    }
+    params.push(limit, offset);
+
+    const animes = await queryDatabase(sql, params);
 
     const response = { data: animes, total, page, limit };
     cache.set(cacheKey, response);
@@ -124,40 +135,10 @@ app.get("/animes/:id", async (req, res) => {
   if (cached) return res.json(cached);
 
   try {
-    const anime = await queryDatabase(
-      `
-      SELECT 
-        la.id, 
-        la.nom AS nom_anime, 
-        la.nom_url AS nom_url_anime, 
-        la.affiche_url AS affiche_anime, 
-        la.description AS description_anime,
-        GROUP_CONCAT(DISTINCT l.nom ORDER BY l.nom SEPARATOR ', ') AS langue_anime,
-        GROUP_CONCAT(DISTINCT c.nom ORDER BY c.nom SEPARATOR ', ') AS categorie_anime,
-        COUNT(DISTINCT ts.id) AS saisons_anime,
-        MAX(episode_stats.episode_count) AS episodes_anime
-      FROM tab_liste_anime la
-      LEFT JOIN tab_parler p ON p.anime = la.id
-      LEFT JOIN tab_langues l ON l.id = p.langue
-      LEFT JOIN tab_categoriser ca ON ca.anime = la.id
-      LEFT JOIN tab_categories c ON c.id = ca.categorie
-      LEFT JOIN tab_saisons ts ON ts.anime = la.id
-      LEFT JOIN (
-        SELECT s.anime, COUNT(e.id) AS episode_count, e.langue
-        FROM tab_saisons s
-        JOIN tab_episodes e ON e.saison = s.id
-        GROUP BY s.anime, e.langue
-      ) AS episode_stats ON episode_stats.anime = la.id
-      WHERE la.id = ?
-      GROUP BY la.id;
-      `,
-      [id]
-    );
-
+    const anime = await queryDatabase(getAnimeQuery({ byId: true }), [id]);
     if (anime.length === 0) {
       return res.status(404).json({ error: "Animé non trouvé." });
     }
-
     cache.set(cacheKey, anime[0]);
     res.json(anime[0]);
   } catch (error) {

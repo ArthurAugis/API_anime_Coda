@@ -56,14 +56,12 @@ function updateButtons() {
 function showAnimes(data) {
   animelist.innerHTML = "";
 
-  // Sécurité XSS : textContent au lieu de innerHTML pour les valeurs
   data.data.forEach((anime) => {
     const animeItem = document.createElement("tr");
     animeItem.classList.add("anime-item");
 
     Object.entries(anime).forEach(([key, value]) => {
       const cell = document.createElement("td");
-      cell.setAttribute("data-label", key);
 
       if (key === "affiche_anime") {
         const img = document.createElement("img");
@@ -80,7 +78,6 @@ function showAnimes(data) {
 
     // Actions (édition/suppression)
     const actionCell = document.createElement("td");
-    actionCell.setAttribute("data-label", "Actions");
     actionCell.classList.add("actions-cell");
 
     const wrapper = document.createElement("div");
@@ -90,13 +87,13 @@ function showAnimes(data) {
     editBtn.classList.add("icon-btn", "edit-btn");
     editBtn.innerHTML = `<i class="fas fa-pen" title="Modifier"></i>`;
     editBtn.type = "button";
-    editBtn.onclick = () => handleEdit(anime.id);
+    editBtn.setAttribute("data-edit-id", anime.id);
 
     const deleteBtn = document.createElement("button");
     deleteBtn.classList.add("icon-btn", "delete-btn");
     deleteBtn.innerHTML = `<i class="fas fa-trash" title="Supprimer"></i>`;
     deleteBtn.type = "button";
-    deleteBtn.onclick = () => handleDelete(anime.id);
+    deleteBtn.setAttribute("data-delete-id", anime.id);
 
     wrapper.appendChild(editBtn);
     wrapper.appendChild(deleteBtn);
@@ -443,6 +440,17 @@ function populateSelect(url, selectId) {
     })
     .catch(() => showError(`Erreur lors du chargement des ${selectId}`));
 }
+
+// --------- Delegation des events pour edit/delete ---------
+animelist.addEventListener("click", (e) => {
+  const editBtn = e.target.closest("[data-edit-id]");
+  const deleteBtn = e.target.closest("[data-delete-id]");
+  if (editBtn) {
+    handleEdit(editBtn.getAttribute("data-edit-id"));
+  } else if (deleteBtn) {
+    handleDelete(deleteBtn.getAttribute("data-delete-id"));
+  }
+});
 
 // Initialisation des selects
 populateSelect("langues", "langues");
